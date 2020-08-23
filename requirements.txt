@@ -1,0 +1,8 @@
+###### Requirements without Version Specifiers ######
+###### smtplib,ssl,email,datetime comes in standard python
+requests
+matplotlib
+beautifulsoup4
+
+###### Requirements with Version Specifiers ######
+numpy == 1.16.1
