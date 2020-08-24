@@ -14,6 +14,7 @@ from email.mime.image import MIMEImage
 import requests
 import matplotlib.pyplot as plt
 from datetime import date
+from datetime import datetime
 from bs4 import BeautifulSoup
 from boto3.dynamodb.conditions import Key
 
@@ -179,8 +180,15 @@ def create_graphs(countyAndCaseData):
     filenames = []
     for county in countyAndCaseData:
         # make a new graph!
-        xaxis = countyAndCaseData[county][0] # dates
+        # handle dates
+        xaxis = []
+        for stringDate in countyAndCaseData[county][0]:
+            xval = datetime.strptime(stringDate, '%Y-%m-%d')
+            xaxis.append(xval)
         yaxis = countyAndCaseData[county][1] # cases
+        # order by date for graphs
+        xaxis, yaxis = zip(*sorted(zip(xaxis, yaxis)))
+
         fig = plt.figure()
         plt.plot(xaxis, yaxis, label=county)
         plt.title(county)
