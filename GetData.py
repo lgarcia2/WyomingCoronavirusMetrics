@@ -193,6 +193,7 @@ def create_graphs(countyAndCaseData):
         plt.plot(xaxis, yaxis, label=county)
         plt.title(county)
         plt.xlabel('Date') 
+        plt.xticks(rotation=15)
         plt.ylabel('Number Of Cases') 
         filename = '/tmp/' + str(date.today()) + county + '.png'
         filenames.append(filename)
