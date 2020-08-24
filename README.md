@@ -10,3 +10,15 @@ This is an AWS Lambda function that reads coronavirus data from the Wyoming Depa
 5. zip deployment folder 
     zip -r /deploy.zip .
 6. Upload to AWS
+
+# Troubleshooting
+- Numpy: Unable to import module
+    - install and compile numpy with aws specific distro or download precompiled numpy
+    - https://aws.amazon.com/premiumsupport/knowledge-center/lambda-python-package-compatible/
+- ft2font: Unable to import module
+    - install and compile matplotlib with aws specific distro or download precompiled numpy
+    - https://pypi.org/project/matplotlib
+- instead of precompiling you can compile your own:
+    - https://aws.amazon.com/premiumsupport/knowledge-center/lambda-layer-simulated-docker/
+    - docker run -v c:\mypath\myproj:/var/task "lambci/lambda:build-python3.8" /bin/sh -c "pip install -r requirements.txt -t python/lib/python3.8/site-packages/; exit"
+

@@ -17,8 +17,9 @@ from datetime import date
 from bs4 import BeautifulSoup
 from boto3.dynamodb.conditions import Key
 
-senderEmail = 'mail@gmail.com'
-senderPass = 'mycoolpass'
+senderEmail = 'test@email.com'
+senderUn = 'un'
+senderPass = 'pw'
 countyList = [
         'Albany',
         'Big Horn',
@@ -78,22 +79,37 @@ def get_wyoming_data():
     countyAndCases = parseCountiesAndCounts(htmlBody, countyList)
     return countyAndCases
 
-def get_wyoming_previous_data(datum_to_append=None):
+def get_wyoming_previous_data(datum_to_append=None, dynamodb=None):
     if not dynamodb:
         dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table('WyomingCoronavirusCountyCaseCount')
 
+    # this table design was bad and I feel bad :(
+    # at least its just a prototype project to get used to dynamoDB & Lambda
+    # I really hope coronavirus doesn't last long enough to make this 
+    # super expensive :o
+    response = table.scan(ProjectionExpression="county,#dateIsAReservedKeyword,cases",
+        ExpressionAttributeNames={'#dateIsAReservedKeyword': 'date'})
+    countyData = response['Items']
+    while 'LastEvaluatedKey' in response:
+        response = table.scan(ProjectionExpression="county,#dateIsAReservedKeyword,cases",
+            ExpressionAttributeNames={'#dateIsAReservedKeyword': 'date'},
+            ExclusiveStartKey=response['LastEvaluatedKey'])
+        countyData.extend(response['Items'])
+
+    # dont think about this too hard, like I mentioned earlier,
+    # this weirdness stems from my poor initial table design 
+    # stemming from my lack of understanding of DynamoDB
     formattedData = dict()
-    for county in countyList:
-        countyData = table.query(
-            KeyConditionExpression=Key('county').eq(county)
-        )
-        dates = [] # should go on the x axis
-        cases = [] # should go on the y axis
-        for countydatum in countyData:
-            dates.append(countydatum['date'])
-            cases.append(countydatum['cases'])
-        formattedData[county] = [dates,cases]
+    for countydatum in countyData:
+        if not countydatum:
+            continue
+        county = countydatum['county']
+        if not formattedData.get(county):
+            formattedData[county] = [[countydatum['date']],[countydatum['cases']]]
+        else:
+            formattedData[county][0].append(countydatum['date'])
+            formattedData[county][1].append(countydatum['cases'])
 
     if(datum_to_append is not None):
         for county in datum_to_append:
@@ -103,21 +119,35 @@ def get_wyoming_previous_data(datum_to_append=None):
     return formattedData
 
 
-def data_exists_for_today():
+def data_exists_for_today(dynamodb=None):
     today = str(date.today())
     if not dynamodb:
         dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table('WyomingCoronavirusCountyCaseCount')
-    dataForToday = table.query(
-        KeyConditionExpression=Key('date').eq(today)
-    )
-    if dataForToday is None:
-        return False
-    else:
-        return True
+
+    # this table design was bad and I feel bad :(
+    # at least its just a prototype project to get used to dynamoDB & Lambda
+    # I really hope coronavirus doesn't last long enough to make this 
+    # super expensive :o
+    response = table.scan(ProjectionExpression="#dateIsAReservedKeyword", 
+        ExpressionAttributeNames={'#dateIsAReservedKeyword': 'date'})
+    result = response['Items']
+    for dataDate in result:
+        if dataDate == today:
+            return True
+    while 'LastEvaluatedKey' in response:
+        response = table.scan(ProjectionExpression="#dateIsAReservedKeyword", 
+            ExpressionAttributeNames={'#dateIsAReservedKeyword': 'date'}, 
+            ExclusiveStartKey=response['LastEvaluatedKey'])
+        result = response['Items']
+        for dataDate in result:
+            if dataDate == today:
+                return True
+
+    return False
 
 
-def get_emails():
+def get_emails(dynamodb=None):
     if not dynamodb:
         dynamodb = boto3.resource('dynamodb')
     # I've been collecting data in this one table for a while
@@ -126,19 +156,21 @@ def get_emails():
     # regular data should just be a uuid
     # email addresses should be #email#{uuid}
     table = dynamodb.Table('WyomingCoronavirusCountyCaseCount')
-    emails = table.query(
-        KeyConditionExpression=Key('WyomingCoronavirusCountyCaseCountId').begins_with('#email')
+    response = table.query(
+        IndexName="emailKey-index",
+        KeyConditionExpression=Key('emailKey').eq('email')
     )
 
     #email objects should look like 
     #{
-    #    "WyomingCoronavirusCountyCaseCountId" : "#email#{uuid}",
+    #    "WyomingCoronavirusCountyCaseCountId" : "address@email.com",
+    #    "emailKey" : "email"
     #    "email" : "address@email.com"
     #}
 
     emailList = []
-    for email in emails:
-        emailList.append(emails['email'])
+    for email in response['Items']:
+        emailList.append(email['email'])
 
     return emailList
 
@@ -154,7 +186,7 @@ def create_graphs(countyAndCaseData):
         plt.title(county)
         plt.xlabel('Date') 
         plt.ylabel('Number Of Cases') 
-        filename = str(date.today()) + county + '.png'
+        filename = '/tmp/' + str(date.today()) + county + '.png'
         filenames.append(filename)
         fig.savefig(filename)
         fig.clear()
@@ -171,7 +203,7 @@ def main():
     #print(todaysCountyAndCases['Albany'][0])
     #print(todaysCountyAndCases['Albany'][1])
     #filenames = create_graphs(todaysCountyAndCases)
-    #emailList = ["ijollyman@yahoo.com"]
+    #emailList = ["test@email.com"]
     # -- end testing purposes only
 
     countyAndCaseData = dict()
@@ -201,7 +233,7 @@ def email_data(emailList, filenames):
     # this loop and create_email_message should be fine for now
     message = create_email_message(filenames)
     message["Subject"] = 'Wyoming Coronavirus Case Graphs'
-    message["From"] = 'luisa1b2c3d4@gmail.com'
+    message["From"] = senderEmail
     messageTo = ''
     for email in emailList:
         messageTo = email + ','
@@ -209,8 +241,8 @@ def email_data(emailList, filenames):
     message["To"] = messageTo
 
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-        server.login(senderEmail, senderPass)
+    with smtplib.SMTP_SSL("email-smtp.us-east-1.amazonaws.com", 465, context=context) as server:
+        server.login(senderUn, senderPass)
         server.sendmail(senderEmail, messageTo, message.as_string())
 
     return
