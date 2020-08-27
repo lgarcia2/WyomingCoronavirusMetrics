@@ -229,10 +229,23 @@ def main():
     
     filenames = create_graphs(countyAndCaseData)
     print('created graphs')
-    emailList = get_emails()
-    print('got email list')
-    email_data(emailList, filenames)
-    print('done')
+
+    # upload files to s3
+    target_bucket = 'luisorlandogarcia.com-images'
+    bucket_dir = 'technical/coronavirus-metrics/wyoming'
+    upload_to_s3(filenames, target_bucket, bucket_dir)
+    print('uploaded to s3')
+
+    #emailList = get_emails()
+    #print('got email list')
+    #email_data(emailList, filenames)
+    #print('done')
+
+def upload_to_s3(filenames, bucket, bucket_dir):
+    s3_client = boto3.client('s3')
+    for file in filenames:
+        only_filename = file.split('/')[-1]
+        s3_client.upload_file(file, bucket, f"{bucket_dir}/{only_filename}")
 
 def email_data(emailList, filenames):
 
