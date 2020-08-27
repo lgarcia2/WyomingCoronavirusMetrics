@@ -195,7 +195,11 @@ def create_graphs(countyAndCaseData):
         plt.xlabel('Date') 
         plt.xticks(rotation=15)
         plt.ylabel('Number Of Cases') 
-        filename = '/tmp/' + str(date.today()) + county + '.png'
+        # filename = '/tmp/' + str(date.today()) + county + '.png'
+        # In older versions, I appended the date so that I could better keep track
+        # of the filenames. Now I'm making it generic so that I can overwrite the files 
+        # for my website and always have fresh data
+        filename = '/tmp/' + county + '.png'
         filenames.append(filename)
         fig.savefig(filename)
         fig.clear()
