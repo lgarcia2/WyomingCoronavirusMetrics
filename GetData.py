@@ -195,6 +195,7 @@ def create_graphs(countyAndCaseData):
         plt.xlabel('Date') 
         plt.xticks(rotation=15)
         plt.ylabel('Number Of Cases') 
+        plt.tight_layout() # make sure x axis label doesn't get cut off
         # filename = '/tmp/' + str(date.today()) + county + '.png'
         # In older versions, I appended the date so that I could better keep track
         # of the filenames. Now I'm making it generic so that I can overwrite the files 
