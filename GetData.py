@@ -77,7 +77,6 @@ def put_CountiesAndCases(countiesAndCases, dynamodb=None):
 
 def get_wyoming_data():
     htmlBody = getHtmlAsString('https://health.wyo.gov/publichealth/infectious-disease-epidemiology-unit/disease/novel-coronavirus/')
-    #print(htmlBody)
     countyAndCases = parseCountiesAndCounts(htmlBody, countyList)
     return countyAndCases
 
@@ -310,9 +309,6 @@ def parseCountiesAndCounts(htmlBody, countyList):
     allps = soup.find_all('p')
     countyAndCases = dict()
     for element in allps:
-        print('****************************')
-        print(element)
-        print(element.next)
         if element.contents is None:
             continue
         # this is a little weird, the first county is in the <p>. All subsequent counties are in <br>'s within the <p>
