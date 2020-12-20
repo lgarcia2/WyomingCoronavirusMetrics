@@ -77,6 +77,7 @@ def put_CountiesAndCases(countiesAndCases, dynamodb=None):
 
 def get_wyoming_data():
     htmlBody = getHtmlAsString('https://health.wyo.gov/publichealth/infectious-disease-epidemiology-unit/disease/novel-coronavirus/')
+    #print(htmlBody)
     countyAndCases = parseCountiesAndCounts(htmlBody, countyList)
     return countyAndCases
 
@@ -303,12 +304,36 @@ def getHtmlAsString(url):
     content = page.content.decode("utf-8") 
     return content
 
+
 def parseCountiesAndCounts(htmlBody, countyList):
     soup = BeautifulSoup(htmlBody, 'html.parser')
-    unparsedCounties = soup.find_all('strong')
-
+    allps = soup.find_all('p')
     countyAndCases = dict()
-    for unparsedCounty in unparsedCounties:
+    for element in allps:
+        print('****************************')
+        print(element)
+        print(element.next)
+        if element.contents is None:
+            continue
+        # this is a little weird, the first county is in the <p>. All subsequent counties are in <br>'s within the <p>
+        for child in element.contents: 
+            str_data = child.string
+            if str_data is None:
+                continue
+            splitCounty = str_data.split(':')
+            if not (splitCounty[0] in countyList):
+                continue
+            county = splitCounty[0]
+            cases = splitCounty[1].split()[0]
+            cases = cases.replace(',', '')
+            countyAndCases[county] = [[str(date.today())],[int(cases)]]
+
+    return countyAndCases
+    
+
+def parseCountyBlock(unparsed_counties) -> dict:
+    countyAndCases = dict()
+    for unparsedCounty in unparsed_counties:
         elementValue = unparsedCounty.text
         splitCounty = elementValue.split(':')
         if not (splitCounty[0] in countyList):
@@ -318,6 +343,14 @@ def parseCountiesAndCounts(htmlBody, countyList):
         countyAndCases[county] = [[str(date.today())],[int(cases)]]
 
     return countyAndCases
+
+
+#Outdated as of 10-21-2020
+def parseCountiesAndCounts_legacy(htmlBody, countyList):
+    soup = BeautifulSoup(htmlBody, 'html.parser')
+    unparsedCounties = soup.find_all('strong')
+
+    return parseCountyBlock(unparsedCounties)
 
 
 if __name__ == "__main__":
